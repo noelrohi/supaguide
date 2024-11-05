@@ -26,7 +26,6 @@
       },
       "suspicious": {
         "noExplicitAny": "off",
-        "noConsoleLog": "warn",
         "noDoubleEquals": "off"
       },
       "complexity": {
