@@ -24,7 +24,11 @@ app.get("/", (c) => {
 
 app.post("/extension/start", async (c) => {
   // create a demo record in db
-  return c.text("start recording");
+  return c.json({
+    success: true,
+    url: "https://supaguide.com",
+    demoId: "demoId",
+  });
 });
 
 app.post(
@@ -33,16 +37,19 @@ app.post(
     "json",
     z.object({
       demoId: z.string(),
+      clickCount: z.number(),
     }),
     (c) => {
       console.log(c);
     },
   ),
   async (c) => {
-    // check number of clicks
     // stop recording
-    const { demoId } = c.req.valid("json");
-    return c.text(`stop recording for demoId: ${demoId}`);
+    const { demoId, clickCount } = c.req.valid("json");
+    return c.json({
+      success: true,
+      demoId,
+    });
   },
 );
 
@@ -67,7 +74,10 @@ app.post(
     // check if demoId exists, check if it is not closed yet, then proceed
     const body = c.req.valid("form");
 
-    return c.text("send click event");
+    return c.json({
+      success: true,
+      demoId: body.demoId,
+    });
   },
 );
 
