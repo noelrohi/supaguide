@@ -1,106 +1,90 @@
-"use client";
-
 import { Button } from "@/components/ui/button";
-import { useRef, useState } from "react";
+import { PauseCircleIcon, PlayIcon, StopCircleIcon } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 
-export function Popup() {
-  const [isRecording, setIsRecording] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
+interface RecordingState {
+  isRecording: boolean;
+  isPlaying: boolean;
+}
 
-  const startRecording = async () => {
-    try {
-      const stream = await new Promise<MediaStream>((resolve, reject) => {
-        chrome.tabCapture.capture({ video: true, audio: true }, (stream) => {
-          if (chrome.runtime.lastError) {
-            reject(chrome.runtime.lastError);
-          } else if (stream) {
-            resolve(stream);
-          } else {
-            reject(new Error("Failed to capture tab"));
-          }
-        });
-      });
+export default function Popup() {
+  const [recordingState, setRecordingState] = useState<RecordingState>({
+    isRecording: false,
+    isPlaying: false,
+  });
 
-      const recorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = recorder;
+  useEffect(() => {
+    // Request initial state from background script
+    chrome.runtime.sendMessage({ type: "GET_RECORDING_STATE" }, (response) => {
+      setRecordingState(response);
+    });
 
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          setRecordedChunks((prev) => [...prev, event.data]);
-        }
-      };
+    // Listen for state updates from background script
+    const listener = (message: any) => {
+      if (message.type === "RECORDING_STATE_UPDATE") {
+        setRecordingState(message.state);
+      }
+    };
+    chrome.runtime.onMessage.addListener(listener);
 
-      recorder.start();
-      setIsRecording(true);
-      setIsPaused(false);
-    } catch (error) {
-      console.error("Error starting recording:", error);
-    }
-  };
+    return () => {
+      chrome.runtime.onMessage.removeListener(listener);
+    };
+  }, []);
 
-  const pauseRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
-      mediaRecorderRef.current.pause();
-      setIsPaused(true);
-    }
-  };
+  const startRecording = useCallback(async () => {
+    chrome.runtime.sendMessage({ type: "START_RECORDING" });
+  }, []);
 
-  const continueRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "paused") {
-      mediaRecorderRef.current.resume();
-      setIsPaused(false);
-    }
-  };
+  const stopRecording = useCallback(() => {
+    chrome.runtime.sendMessage({ type: "STOP_RECORDING" });
+  }, []);
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      setIsPaused(false);
-      setIsProcessing(true);
-
-      // Create a blob from the recorded chunks
-      const blob = new Blob(recordedChunks, { type: "video/webm" });
-
-      // Send the blob to the background script for processing
-      chrome.runtime.sendMessage({ action: "processVideo", video: blob }, (response) => {
-        if (response.success) {
-          setDownloadUrl(response.url);
-        } else {
-          console.error("Error processing video:", response.error);
-        }
-        setIsProcessing(false);
-      });
-
-      // Clear recorded chunks
-      setRecordedChunks([]);
-    }
-  };
+  const togglePause = useCallback(() => {
+    chrome.runtime.sendMessage({
+      type: "TOGGLE_PAUSE",
+      isPlaying: !recordingState.isPlaying,
+    });
+  }, [recordingState.isPlaying]);
 
   return (
-    <main className="container mx-auto flex h-[15rem] w-[20rem] items-center justify-center">
-      <div className="flex flex-col items-center justify-center space-y-6">
-        <h3 className="font-bold text-3xl tracking-tighter">Supaguide</h3>
-        <p className="text-center">Easily create how-to video guides for the current tab</p>
-        <div className="flex items-center justify-center space-x-4">
-          {!isRecording && !isProcessing && !downloadUrl && (
-            <Button onClick={startRecording}>Start</Button>
-          )}
-          {isRecording && (
+    <main className="container mx-auto flex h-[15rem] w-[15rem] items-center justify-center">
+      <section className="flex flex-col items-center gap-4">
+        <h1 className="font-bold text-3xl tracking-tighter">supaguide</h1>
+        <p className="whitespace-nowrap text-sm">Easily create how-to videos</p>
+        {recordingState.isRecording && (
+          <Button onClick={togglePause}>
+            {recordingState.isPlaying ? (
+              <PauseCircleIcon className="size-4" />
+            ) : (
+              <PlayIcon className="size-4" />
+            )}
+            {recordingState.isPlaying ? "Pause" : "Continue"} recording
+          </Button>
+        )}
+        <Button
+          variant={recordingState.isRecording ? "destructive" : "default"}
+          onClick={() => {
+            if (!recordingState.isRecording) {
+              startRecording();
+            } else {
+              stopRecording();
+            }
+          }}
+        >
+          {recordingState.isRecording ? (
             <>
-              <Button onClick={isPaused ? continueRecording : pauseRecording}>
-                {isPaused ? "Continue" : "Pause"}
-              </Button>
-              <Button onClick={stopRecording}>Stop</Button>
+              <StopCircleIcon className="size-4" />
+              Stop recording
+            </>
+          ) : (
+            <>
+              <PlayIcon className="size-4" />
+              Start recording
             </>
           )}
-          {isProcessing && <p>Processing your guide video...</p>}
-        </div>
-      </div>
+        </Button>
+      </section>
     </main>
   );
 }
