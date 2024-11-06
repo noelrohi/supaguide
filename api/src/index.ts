@@ -15,7 +15,7 @@ const app = new Hono()
   .onError((err, c) => {
     console.error(err);
     c.res.status = 500;
-    return c.json({ error: err.message });
+    return c.json({ error: err.message, success: false });
   });
 
 export default app;

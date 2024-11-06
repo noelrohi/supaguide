@@ -81,10 +81,15 @@ app.post(
     const { screenshot, ...body } = c.req.valid("form");
     const db = database(c.env);
     const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
+    console.log(screenshot, "File");
     const { data } = await supabase.storage
       .from("files")
-      .upload(`/public/${Date.now()}.png`, screenshot);
-    if (!data) throw new Error("Failed to upload screenshot");
+      .upload(`/public/${screenshot.name}`, screenshot);
+    if (!data)
+      return c.json(
+        { success: false, error: "Failed to upload screenshot" },
+        500,
+      );
     const toInsert: typeof clicks.$inferInsert = {
       demoId: body.demoId,
       x: body.x,
