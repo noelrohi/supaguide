@@ -59,9 +59,9 @@ app.post(
     "form",
     z.object({
       demoId: z.string(),
-      x: z.number(),
-      y: z.number(),
-      timestamp: z.number(),
+      x: z.coerce.number(),
+      y: z.coerce.number(),
+      timestamp: z.string(),
       elementHTML: z.string(),
       elementContent: z.string(),
       screenshot: fileSchema,
