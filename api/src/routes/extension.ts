@@ -1,8 +1,11 @@
+import { database } from "@/db";
+import { demos } from "@/db/schema";
+import type { Env } from "@/types";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
 
-const app = new Hono();
+const app = new Hono<{ Bindings: Env }>();
 
 const fileSchema = z
   .instanceof(File)
@@ -13,10 +16,17 @@ const fileSchema = z
 
 app.post("/start", async (c) => {
   // create a demo record in db
+  const db = database(c.env);
+  const [demo] = await db
+    .insert(demos)
+    .values({
+      isDraft: true,
+    })
+    .returning();
   return c.json({
     success: true,
     url: "https://supaguide.com",
-    demoId: "demoId",
+    demoId: demo.id,
   });
 });
 

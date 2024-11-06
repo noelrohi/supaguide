@@ -9,6 +9,9 @@ const app = new Hono()
   .use("*", cors())
   .use("*", logger())
   .route("/extension", extension)
+  .get("/", (c) => {
+    return c.text("supaguide is running!");
+  })
   .onError((err, c) => {
     console.error(err);
     c.res.status = 500;

@@ -2,15 +2,21 @@
   "name": "api",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy --minify"
+    "deploy": "wrangler deploy --minify",
+    "db": "drizzle-kit"
   },
   "dependencies": {
     "@hono/zod-validator": "^0.4.1",
+    "@libsql/client": "^0.14.0",
+    "@paralleldrive/cuid2": "^2.2.2",
+    "dotenv": "^16.4.5",
+    "drizzle-orm": "^0.36.0",
     "hono": "^4.6.9",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241022.0",
+    "drizzle-kit": "^0.27.1",
     "wrangler": "^3.83.0"
   },
   "packageManager": "pnpm@9.12.3+sha512.cce0f9de9c5a7c95bef944169cc5dfe8741abfb145078c0d508b868056848a87c81e626246cb60967cbd7fd29a6c062ef73ff840d96b3c86c40ac92cf4a813ee"
