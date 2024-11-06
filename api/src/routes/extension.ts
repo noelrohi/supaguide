@@ -1,7 +1,9 @@
 import { database } from "@/db";
-import { demos } from "@/db/schema";
+import { clicks, demos } from "@/db/schema";
 import type { Env } from "@/types";
 import { zValidator } from "@hono/zod-validator";
+import { createClient } from "@supabase/supabase-js";
+import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 
@@ -43,11 +45,16 @@ app.post(
     },
   ),
   async (c) => {
-    // stop recording
     const { demoId, clickCount } = c.req.valid("json");
+    const db = database(c.env);
+    const [demo] = await db
+      .update(demos)
+      .set({ isDraft: false, clickCount })
+      .where(eq(demos.id, demoId))
+      .returning();
     return c.json({
       success: true,
-      demoId,
+      demo,
     });
   },
 );
@@ -71,11 +78,26 @@ app.post(
   ),
   async (c) => {
     // check if demoId exists, check if it is not closed yet, then proceed
-    const body = c.req.valid("form");
+    const { screenshot, ...body } = c.req.valid("form");
+    const db = database(c.env);
+    const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
+    const { data } = await supabase.storage
+      .from("files")
+      .upload(`/public/${Date.now()}.png`, screenshot);
+    if (!data) throw new Error("Failed to upload screenshot");
+    const toInsert: typeof clicks.$inferInsert = {
+      demoId: body.demoId,
+      x: body.x,
+      y: body.y,
+      elementHTML: body.elementHTML,
+      elementContent: body.elementContent,
+      imageUrl: `${c.env.SUPABASE_URL}/storage/v1/object/${data.fullPath}`,
+    };
+    const [click] = await db.insert(clicks).values(toInsert).returning();
 
     return c.json({
       success: true,
-      demoId: body.demoId,
+      click,
     });
   },
 );
