@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://your-api-url.com";
+const API_BASE_URL = "https://supaguide-api.noelrohi59.workers.dev";
 
 let recordingState = {
   isRecording: false,
