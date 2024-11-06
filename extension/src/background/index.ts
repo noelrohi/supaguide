@@ -1,4 +1,6 @@
-const API_BASE_URL = "https://supaguide-api.noelrohi59.workers.dev";
+const API_BASE_URL = import.meta.env.DEV
+  ? "http://localhost:8787"
+  : "https://supaguide-api.noelrohi59.workers.dev";
 
 let recordingState = {
   demoId: null,
@@ -37,7 +39,10 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
 
 async function startRecording() {
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const [tab] = await chrome.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
     if (!tab.id) return;
 
     const response = await fetch(`${API_BASE_URL}/extension/start`, {
@@ -83,7 +88,12 @@ async function stopRecording() {
       throw new Error("Failed to stop recording");
     }
 
-    updateRecordingState({ isRecording: false, isPlaying: false, clickCount: 0, demoId: null });
+    updateRecordingState({
+      isRecording: false,
+      isPlaying: false,
+      clickCount: 0,
+      demoId: null,
+    });
   } catch (error) {
     console.error("Error stopping recording:", error);
   }
@@ -104,7 +114,9 @@ async function handleClickEvent(event: any, screenshot: ArrayBuffer) {
     formData.append("elementContent", event.elementContent);
 
     const blob = new Blob([screenshot], { type: "image/jpeg" });
-    const file = new File([blob], `screenshot_${event.timestamp}.jpg`, { type: "image/jpeg" });
+    const file = new File([blob], `screenshot_${event.timestamp}.jpg`, {
+      type: "image/jpeg",
+    });
     formData.append("screenshot", file);
 
     const response = await fetch(`${API_BASE_URL}/extension/image`, {
