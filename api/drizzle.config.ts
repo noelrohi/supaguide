@@ -1,7 +1,9 @@
 import { config } from "dotenv";
 import { defineConfig } from "drizzle-kit";
 
-config({ path: ".env" });
+config({
+  path: process.env.NODE_ENV === "production" ? ".env.production" : ".dev.vars",
+});
 
 const TURSO_CONNECTION_URL = process.env.TURSO_CONNECTION_URL;
 const TURSO_AUTH_TOKEN = process.env.TURSO_AUTH_TOKEN;

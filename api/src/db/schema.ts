@@ -9,6 +9,8 @@ export const demos = sqliteTable("demos", (t) => ({
   isDraft: t.integer({ mode: "boolean" }).default(false),
   title: t.text(),
   clickCount: t.integer().default(0),
+  createdAt: t.text().notNull().default(NOW),
+  updatedAt: t.text().$onUpdate(() => NOW),
 }));
 
 export const clicks = sqliteTable(
