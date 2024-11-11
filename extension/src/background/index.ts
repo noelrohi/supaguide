@@ -9,13 +9,58 @@ let recordingState = {
   clickCount: 0,
 };
 
-function updateRecordingState(newState: Partial<typeof recordingState>) {
+async function updateRecordingState(newState: Partial<typeof recordingState>) {
   recordingState = { ...recordingState, ...newState };
-  chrome.runtime.sendMessage({
-    type: "RECORDING_STATE_UPDATE",
-    state: recordingState,
+
+  // Send update to all tabs
+  const tabs = await chrome.tabs.query({});
+  tabs.forEach((tab) => {
+    if (tab.id) {
+      chrome.tabs
+        .sendMessage(tab.id, {
+          type: "RECORDING_STATE_UPDATE",
+          state: recordingState,
+        })
+        .catch((err) => {
+          // Ignore errors from tabs that don't have the content script
+          console.log("Could not send to tab:", tab.id, err);
+        });
+    }
   });
+
+  // Also send to popup
+  chrome.runtime
+    .sendMessage({
+      type: "RECORDING_STATE_UPDATE",
+      state: recordingState,
+    })
+    .catch(() => {
+      // Ignore error if popup is not open
+    });
 }
+
+// Add tab change listener at the top level
+chrome.tabs.onActivated.addListener(async (activeInfo) => {
+  chrome.runtime.sendMessage({
+    type: "LOG_SOMETHING",
+    data: {
+      activeInfo,
+      message: "Tab changed",
+    },
+  });
+  if (recordingState.isRecording) {
+    console.log("Tab changed while recording, stopping recording");
+    await stopRecording();
+  }
+});
+
+// Also stop recording when the window changes
+chrome.windows.onFocusChanged.addListener(async (windowId) => {
+  if (windowId === chrome.windows.WINDOW_ID_NONE && recordingState.isRecording) {
+    console.log("Window focus lost while recording, stopping recording");
+    await stopRecording();
+  }
+});
 
 chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
   switch (message.type) {
@@ -28,14 +73,35 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
     case "STOP_RECORDING":
       stopRecording();
       break;
+    case "LOG_SOMETHING":
+      console.log("LOG_SOMETHING", message.data);
+      break;
     case "CLICK_EVENT":
-      handleClickEvent(message.event, message.screenshot);
+      handleClickWithScreenshot(message.event);
       break;
     case "TOGGLE_PAUSE":
       togglePause(message.isPlaying);
       break;
   }
 });
+
+async function handleClickWithScreenshot(clickEvent: any) {
+  try {
+    // Capture the visible tab
+    const dataUrl = await chrome.tabs.captureVisibleTab();
+
+    // Convert data URL to array buffer
+    const response = await fetch(dataUrl);
+    const blob = await response.blob();
+    const arrayBuffer = await blob.arrayBuffer();
+    console.log({ arrayBuffer });
+
+    // Process the click event with screenshot
+    await handleClickEvent(clickEvent, arrayBuffer);
+  } catch (error) {
+    console.error("Screenshot capture failed:", error);
+  }
+}
 
 async function startRecording() {
   try {
